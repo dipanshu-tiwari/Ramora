@@ -7,14 +7,23 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <assert.h>
+#include <signal.h>
 
 #define DEFAULT_HOST "127.0.0.1"
 #define DEFAULT_PORT 5000
 
+void handle_sigpipe(){
+    printf("[ERROR]: Server closed unexpecteadly\n");
+    exit(EXIT_FAILURE);
+}
+
 int write_full(int fd, const char *buf, size_t len) {
     while (len > 0) {
         ssize_t rv = write(fd, buf, len);
-        if (rv <= 0) return -1;
+        if (rv < 0) {
+            printf("[ERROR]: Server closed unexpecteadly\n");
+            return -1;
+        }
         buf += rv;
         len -= rv;
     }
@@ -24,7 +33,10 @@ int write_full(int fd, const char *buf, size_t len) {
 int read_full(int fd, char *buf, size_t len) {
     while (len > 0) {
         ssize_t rv = read(fd, buf, len);
-        if (rv <= 0) return -1;
+        if (rv < 0) {
+            printf("[ERROR]: Server closed unexpecteadly\n");
+            return -1;
+        }
         buf += rv;
         len -= rv;
     }
@@ -47,6 +59,8 @@ enum Tag {
 };
 
 int main(int argc, char* argv[]) {
+
+    signal(SIGPIPE, handle_sigpipe);
 
     char host[64] = DEFAULT_HOST;
     int port = DEFAULT_PORT;

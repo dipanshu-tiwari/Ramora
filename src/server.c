@@ -312,16 +312,18 @@ int main(int argc, char* argv[]){
         }
 
         {
-            uint64_t time_of_expiration = get_monotonic_msec() - ((uint64_t)IDLE_TIMEOUT_MS);
-            while (!dlist_empty(&gd.idle_list)){
-                struct Conn* conn = (struct Conn*)container_of(gd.idle_list.next, struct Conn, idle_node);
-                if (conn->last_used_time > time_of_expiration){
-                    break;
+            if (IDLE_TIMEOUT_MS > 0) {
+                uint64_t time_of_expiration = get_monotonic_msec() - ((uint64_t)IDLE_TIMEOUT_MS);
+                while (!dlist_empty(&gd.idle_list)){
+                    struct Conn* conn = (struct Conn*)container_of(gd.idle_list.next, struct Conn, idle_node);
+                    if (conn->last_used_time > time_of_expiration){
+                        break;
+                    }
+                    close(conn->fd);
+                    fd2conn.data[conn->fd] = NULL;
+                    epoll_ctl(epfd, EPOLL_CTL_DEL, conn->fd, 0);
+                    free_conn(conn);
                 }
-                close(conn->fd);
-                fd2conn.data[conn->fd] = NULL;
-                epoll_ctl(epfd, EPOLL_CTL_DEL, conn->fd, 0);
-                free_conn(conn);
             }
 
             int max_expiration_count = 10;
